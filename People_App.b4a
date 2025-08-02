@@ -1,0 +1,107 @@
+﻿Build1=Default,b4a.example
+File1=Layout.bal
+FileGroup1=Default Group
+Group=Default Group
+Library1=core
+Library2=xui
+Library3=sql
+ManifestCode='This code will be applied to the manifest file during compilation.~\n~'You do not need to modify it in most cases.~\n~'See this link for for more information: https://www.b4x.com/forum/showthread.php?p=78136~\n~AddManifestText(~\n~<uses-sdk android:minSdkVersion="21" android:targetSdkVersion="34"/>~\n~<supports-screens android:largeScreens="true" ~\n~    android:normalScreens="true" ~\n~    android:smallScreens="true" ~\n~    android:anyDensity="true"/>)~\n~SetApplicationAttribute(android:icon, "@drawable/icon")~\n~SetApplicationAttribute(android:label, "$LABEL$")~\n~CreateResourceFromFile(Macro, Themes.LightTheme)~\n~'End of default text.~\n~
+Module1=Starter
+NumberOfFiles=1
+NumberOfLibraries=3
+NumberOfModules=1
+Version=13.1
+@EndOfDesignText@
+#Region  Project Attributes 
+    #ApplicationLabel: RegisterUsers
+    #VersionCode: 1
+    #VersionName: 
+    #SupportedOrientations: unspecified
+    #CanInstallToExternalStorage: False
+#End Region
+
+#Region  Activity Attributes 
+    #FullScreen: False
+    #IncludeTitle: False
+#End Region
+
+Sub Process_Globals
+	Dim xui As XUI
+	Dim SQL1 As SQL
+End Sub
+
+Sub Globals
+	Private EditName As EditText
+	Private EditAge As EditText
+	Private btnAddUser As Button
+	Private ListView1 As ListView
+End Sub
+
+Sub Activity_Create(FirstTime As Boolean)
+	Activity.LoadLayout("Layout") ' Make sure your layout file is named Layout.bal
+
+	If FirstTime Then
+		' ✅ Copy DB from assets ONLY if it doesn't exist yet
+		If File.Exists(File.DirInternal, "mydata.db") = False Then
+			File.Copy(File.DirAssets, "mydata.db", File.DirInternal, "mydata.db")
+		End If
+
+		' ✅ Initialize the database
+		SQL1.Initialize(File.DirInternal, "mydata.db", True)
+
+		' ✅ Create table if it doesn't exist
+		SQL1.ExecNonQuery("CREATE TABLE IF NOT EXISTS People (Name TEXT, Age INTEGER)")
+	End If
+
+	ShowUsers
+
+	' Optional: Export DB to view it using SQLite tools
+	File.Copy(File.DirInternal, "mydata.db", File.DirRootExternal & "/Download", "mydata.db")
+End Sub
+
+Sub btnAddUser_Click
+	Dim name As String = EditName.Text.Trim
+	Dim ageText As String = EditAge.Text.Trim
+
+	If name = "" Or ageText = "" Then
+		MsgboxAsync("Please fill out both fields.", "Missing Info")
+		Return
+	End If
+
+	Dim age As Int
+	Try
+		age = ageText
+	Catch
+		MsgboxAsync("Age must be a number.", "Invalid Input")
+		Return
+	End Try
+
+	SQL1.ExecNonQuery2("INSERT INTO People (Name, Age) VALUES (?, ?)", Array As Object(name, age))
+	MsgboxAsync("User added successfully!", "Success")
+
+	EditName.Text = ""
+	EditAge.Text = ""
+
+	ShowUsers
+
+	' 🔄 Export the updated database
+	File.Copy(File.DirInternal, "mydata.db", File.DirRootExternal & "/Download", "mydata.db")
+End Sub
+
+
+
+Sub ShowUsers
+	ListView1.Clear
+
+	Dim Cursor As Cursor
+	Cursor = SQL1.ExecQuery("SELECT Name, Age FROM People")
+
+	For i = 0 To Cursor.RowCount - 1
+		Cursor.Position = i
+		Dim name As String = Cursor.GetString("Name")
+		Dim age As Int = Cursor.GetInt("Age")
+		ListView1.AddSingleLine(name & " - Age: " & age)
+	Next
+
+	Cursor.Close
+End Sub
